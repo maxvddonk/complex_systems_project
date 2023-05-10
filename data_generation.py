@@ -3,10 +3,6 @@ import numpy as np
 
 from tqdm import tqdm
 
-from PIL import Image
-
-import time
-
 class MHSampler:
     def __init__(self, lattice_size = (10, 10), temperature = 293.15, J = 1):
         self.lattice = np.ones(lattice_size)
