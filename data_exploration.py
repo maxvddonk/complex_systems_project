@@ -5,7 +5,7 @@ import numpy as np
 
 df = pd.read_csv("data.csv", index_col = 0)
 
-states = np.array(df[[str(x) for x in range(100)]])
+states = np.array(df[[str(x) for x in range(len(df.columns) - 1)]])
 
 df['magnetic_moment'] = np.abs(np.sum(states, axis = 1))
 
