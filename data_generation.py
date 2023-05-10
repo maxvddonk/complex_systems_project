@@ -81,7 +81,7 @@ df = pd.DataFrame(columns = [str(x) for x in range(100)] + ["temperature"])
 
 sampler = MHSampler()
 
-for _ in tqdm(range(100)):
+for _ in tqdm(range(500)):
     temperature = np.random.uniform(0.1, 10)
 
     lattice = sampler.generate_sample(temperature)
