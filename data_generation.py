@@ -12,6 +12,8 @@ class MHSampler:
 
         self.J = J
 
+        self.Energy = self._energy(self.lattice)
+
     def _energy(self, lattice):
         """
         non-public function that returns a new total energy corresponding to the
@@ -32,6 +34,29 @@ class MHSampler:
                     E -= self.J * lattice[(i, j)] * lattice[(i, (j - 1) % lattice.shape[1])]
 
         return E
+
+    def _delta_energy(self, new_lattice):
+        """
+        non-public function that returns the difference between current energy
+        and the energy of a newly proposed changed lattice
+        """
+        indices = np.where(self.lattice != new_lattice)
+        i = indices[0][0]
+        j = indices[1][0]
+
+        old_energy = 0
+        old_energy -= self.J * self.lattice[(i, j)] * self.lattice[((i + 1) % self.lattice.shape[0], j)]
+        old_energy -= self.J * self.lattice[(i, j)] * self.lattice[((i - 1) % self.lattice.shape[0], j)]
+        old_energy -= self.J * self.lattice[(i, j)] * self.lattice[(i, (j + 1) % self.lattice.shape[1])]
+        old_energy -= self.J * self.lattice[(i, j)] * self.lattice[(i, (j - 1) % self.lattice.shape[1])]
+
+        new_energy = 0
+        new_energy -= self.J * new_lattice[(i, j)] * new_lattice[((i + 1) % new_lattice.shape[0], j)]
+        new_energy -= self.J * new_lattice[(i, j)] * new_lattice[((i - 1) % new_lattice.shape[0], j)]
+        new_energy -= self.J * new_lattice[(i, j)] * new_lattice[(i, (j + 1) % new_lattice.shape[1])]
+        new_energy -= self.J * new_lattice[(i, j)] * new_lattice[(i, (j - 1) % new_lattice.shape[1])]
+
+        return new_energy - old_energy
 
     def _generate_new_state(self):
         """
@@ -56,17 +81,16 @@ class MHSampler:
             iterations = len(self.lattice.flatten()) * 10
 
         #main loop
-        E0 = self._energy(self.lattice)
         for i in range(iterations):
             new = self._generate_new_state()
-            E1 = self._energy(new)
+            E_delta = self._delta_energy(new)
 
-            if E1 <= E0:
+            if E_delta <= 0:
                 self.lattice = new
-                E0 = E1
-            elif np.random.uniform() < np.exp(-(E1 - E0) / self.T):
+                self.Energy = self.Energy + E_delta
+            elif np.random.uniform() < np.exp(-(E_delta) / self.T):
                 self.lattice = new
-                E0 = E1
+                self.Energy = self.Energy + E_delta
 
     def generate_sample(self, temperature, iterations = None):
         """
