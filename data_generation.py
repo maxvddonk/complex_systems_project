@@ -12,13 +12,9 @@ class MHSampler:
 
         self.J = J
 
-        self.Energy = self._energy(self.lattice)
+        #self.Energy = self._energy(self.lattice)
 
-    def _energy(self, lattice):
-        """
-        non-public function that returns a new total energy corresponding to the
-        state of some lattice by looping over all possible pairs of neighbours
-        """
+    """def _energy(self, lattice):
         E = 0
 
         for i in range(lattice.shape[0]):
@@ -33,7 +29,7 @@ class MHSampler:
                 if (j - 1) % lattice.shape[0] > j:
                     E -= self.J * lattice[(i, j)] * lattice[(i, (j - 1) % lattice.shape[1])]
 
-        return E
+        return E"""
 
     def _delta_energy(self, new_lattice):
         """
@@ -87,10 +83,10 @@ class MHSampler:
 
             if E_delta <= 0:
                 self.lattice = new
-                self.Energy = self.Energy + E_delta
+                #self.Energy = self.Energy + E_delta
             elif np.random.uniform() < np.exp(-(E_delta) / self.T):
                 self.lattice = new
-                self.Energy = self.Energy + E_delta
+                #self.Energy = self.Energy + E_delta
 
     def generate_sample(self, temperature, iterations = None):
         """
@@ -103,15 +99,17 @@ class MHSampler:
 
         return self.lattice.flatten()
 
-df = pd.DataFrame(columns = [str(x) for x in range(100)] + ["temperature"])
+df = pd.DataFrame(columns = [str(x) for x in range(15*15)] + ["temperature"])
 
-sampler = MHSampler()
+sampler = MHSampler(lattice_size = (15, 15))
 
-for _ in tqdm(range(750)):
-    temperature = np.random.uniform(0.1, 5)
+temperature = 5
 
-    lattice = sampler.generate_sample(temperature)
-
-    df.loc[len(df)] = list(lattice) + [temperature]
+while temperature > .1:
+    for _ in range(25):
+        lattice = sampler.generate_sample(temperature, iterations = 15 * 15 * 10)
+        df.loc[len(df)] = list(lattice) + [temperature]
+    temperature -= .1
+    print(temperature, end = '\r')
 
 df.to_csv("data.csv")
