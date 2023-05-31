@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras import regularizers
 
 
+
 class MHSampler:
     def __init__(self, lattice_size = (10, 10), temperature = 293.15, J = 1):
         self.lattice = np.ones(lattice_size)
@@ -109,17 +110,19 @@ df = pd.DataFrame(columns = [str(x) for x in range(15*15)] + ["temperature"])
 
 sampler = MHSampler(lattice_size = (15, 15))
 
+t_max = float(input("Maximum T:"))
+t_min = float(input("Minimum T:"))
 
-for t in [5,1]:
+for t in [t_max, t_min]:
     temperature = t
-    for _ in range(25):
+    for _ in range(50):
         lattice = sampler.generate_sample(temperature, iterations = 15 * 15 * 10)
         df.loc[len(df)] = list(lattice) + [temperature]
     print(temperature, end = '\r')
 
 df.to_csv("data.csv")
 
-def execute():
+def execute(t_max,t_min):
     #Retrieve the data that was generated
     df = pd.read_csv("data.csv", index_col = 0)
     X = np.array(df[[str(x) for x in range(len(df.columns) - 1)]])
@@ -146,13 +149,15 @@ def execute():
     
     #Evaluate the model on the test data
     y_pred = model.predict(X_test)
-    
     y_pred = [item for sublist in y_pred for item in sublist]
-    difference = abs(y_pred-y_test)
+    yr_pred = [t_min if yp < 2.26918531421 else t_max for yp in y_pred]
+    
+    difference = abs(yr_pred-y_test)
     print('Input vector:', X_test[0])
     print('Real temperature:', y_test)
-    print('Predicted temperature:', y_pred)
+    print('Predicted temperature:', yr_pred)
     print('Difference: ', difference)
+    print(sum(difference)/len(difference))
     
     plt.plot(history.history['loss'], label='Training Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
@@ -161,6 +166,5 @@ def execute():
     plt.legend()
     plt.show()
 
+execute(t_max,t_min)
         
-       
-
