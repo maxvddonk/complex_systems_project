@@ -115,7 +115,7 @@ t_min = float(input("Minimum T:"))
 
 for t in [t_max, t_min]:
     temperature = t
-    for _ in range(50):
+    for _ in range(200):
         lattice = sampler.generate_sample(temperature, iterations = 15 * 15 * 10)
         df.loc[len(df)] = list(lattice) + [temperature]
     print(temperature, end = '\r')
@@ -145,7 +145,7 @@ def execute(t_max,t_min):
     model.compile(optimizer='adam', loss='mse')
     
     #Train the model with the train and validation data
-    history = model.fit(X_train, y_train, epochs=100, batch_size=128, validation_data=(X_val, y_val))
+    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
     
     #Evaluate the model on the test data
     y_pred = model.predict(X_test)
@@ -157,8 +157,11 @@ def execute(t_max,t_min):
     print('Real temperature:', y_test)
     print('Predicted temperature:', yr_pred)
     print('Difference: ', difference)
-    print(sum(difference)/len(difference))
-    
+    count = 0
+    for i in range(len(difference)):
+        if difference[i] != 0:
+            count += 1
+    print(f"Accuracy: {(len(difference) - count)/(len(difference)) * 100} %")
     plt.plot(history.history['loss'], label='Training Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
     plt.xlabel('Epoch')
