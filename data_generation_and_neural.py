@@ -115,7 +115,7 @@ t_min = float(input("Minimum T:"))
 
 for t in [t_max, t_min]:
     temperature = t
-    for _ in range(200):
+    for _ in range(50):
         lattice = sampler.generate_sample(temperature, iterations = 15 * 15 * 10)
         df.loc[len(df)] = list(lattice) + [temperature]
     print(temperature, end = '\r')
@@ -126,8 +126,9 @@ def execute(t_max,t_min):
     #Retrieve the data that was generated
     df = pd.read_csv("data.csv", index_col = 0)
     X = np.array(df[[str(x) for x in range(len(df.columns) - 1)]])
-    y = np.array(df['temperature'])
+    y = np.array(df['temperature'] > 2.26918531421, dtype = int)
     
+    print(y)
     Size = int(len(X[0]))
     
     # Split the data into train and test sets
@@ -138,11 +139,12 @@ def execute(t_max,t_min):
     model = tf.keras.Sequential([
         tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(X_train.shape[1],)),
         tf.keras.layers.Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
-        tf.keras.layers.Dense(1, activation='linear')
+        tf.keras.layers.Dense(1, activation='sigmoid')
     ])
     
     #Compile the model
-    model.compile(optimizer='adam', loss='mse')
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
     
     #Train the model with the train and validation data
     history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
@@ -150,18 +152,23 @@ def execute(t_max,t_min):
     #Evaluate the model on the test data
     y_pred = model.predict(X_test)
     y_pred = [item for sublist in y_pred for item in sublist]
-    yr_pred = [t_min if yp < 2.26918531421 else t_max for yp in y_pred]
+    #yr_pred = [t_min if yp < 2.26918531421 else t_max for yp in y_pred]
     
-    difference = abs(yr_pred-y_test)
+    difference = abs(y_pred-y_test)
+    
+    count = np.sum(difference)  # Count the number of incorrect predictions
+    accuracy = (len(difference) - count) / len(difference) * 100
+    print(f"Accuracy: {accuracy}%")
+    
     print('Input vector:', X_test[0])
     print('Real temperature:', y_test)
-    print('Predicted temperature:', yr_pred)
-    print('Difference: ', difference)
-    count = 0
-    for i in range(len(difference)):
-        if difference[i] != 0:
-            count += 1
-    print(f"Accuracy: {(len(difference) - count)/(len(difference)) * 100} %")
+    print('Predicted temperature:', y_pred)
+    # print('Difference: ', difference)
+    # count = 0
+    # for i in range(len(difference)):
+    #     if difference[i] != 0:
+    #         count += 1
+    # print(f"Accuracy: {(len(difference) - count)/(len(difference)) * 100} %")
     plt.plot(history.history['loss'], label='Training Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
     plt.xlabel('Epoch')
