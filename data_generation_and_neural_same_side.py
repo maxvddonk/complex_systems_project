@@ -3,6 +3,7 @@ import numpy as np
 import math
 
 from tqdm import tqdm
+from sklearn.metrics import accuracy_score
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -117,10 +118,12 @@ n_lat = int(input("Number of lattices:"))
 
 for t in [t_max, t_min]:
     temperature = t
-    for _ in range(n_lat):
-        lattice = sampler.generate_sample(temperature, iterations = 20 * 20 * 10)
-        df.loc[len(df)] = list(lattice) + [temperature]
-    print(temperature, end = '\r')
+    for _ in range(int(n_lat/5)):
+        sampler = MHSampler(lattice_size = (20, 20))
+        for _ in range(5):
+            lattice = sampler.generate_sample(temperature, iterations =20*20*10)
+            df.loc[len(df)] = list(lattice) + [temperature]
+        print(temperature, end = '\r')
 
 df.to_csv("data.csv")
 
@@ -129,7 +132,7 @@ def execute(t_max):
     #Retrieve the data that was generated
     df = pd.read_csv("data.csv", index_col = 0)
     X = np.array(df[[str(x) for x in range(len(df.columns) - 1)]])
-    y = np.array(df['temperature'] > 2.26918531421, dtype = int)
+    y = np.array(df['temperature'] > ((t_max+t_min)/2), dtype = int)
     
     print(y)
     Size = int(len(X[0]))
@@ -166,8 +169,8 @@ def execute(t_max):
     difference = abs(y_pred-y_test)
     
     count = np.sum(difference)  # Count the number of incorrect predictions
-    accuracy = (len(difference) - count) / len(difference) * 100
-    print(f"Accuracy: {accuracy}%")
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy:", accuracy*100, '%')
     print('Real temperature:', y_test)
     print('Predicted temperature:', y_pred)
     print('Average real temperature: ', sum(y_test)/len(y_test))
@@ -178,7 +181,7 @@ def execute(t_max):
         if difference[i] != 0:
             count += 1
     print(f"Accuracy: {(len(difference) - count)/(len(difference)) * 100} %")
-    df_nn = pd.DataFrame(columns = [t_max] + [t_min] + [n_lat] + [(len(difference) - count)/(len(difference)) * 100])
+    df_nn = pd.DataFrame(columns = [t_max] + [t_min] + [n_lat] + [accuracy*100])
     df_nn.to_csv('data_nn.csv', mode='a', index=False)
     
     
