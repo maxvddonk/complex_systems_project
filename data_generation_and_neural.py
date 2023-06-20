@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
+import math
 
 from tqdm import tqdm
-
+from sklearn.metrics import accuracy_score
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -11,7 +12,7 @@ from tensorflow.keras import regularizers
 
 
 class MHSampler:
-    def __init__(self, lattice_size = (10, 10), temperature = 293.15, J = 1):
+    def __init__(self, lattice_size = (20, 20), temperature = 293.15, J = 1):
         self.lattice = np.ones(lattice_size)
         self.lattice += np.random.randint(2, size = lattice_size) * -2
 
@@ -106,35 +107,47 @@ class MHSampler:
 
         return self.lattice.flatten()
 
-df = pd.DataFrame(columns = [str(x) for x in range(15*15)] + ["temperature"])
+df = pd.DataFrame(columns = [str(x) for x in range(20*20)] + ["temperature"])
 
-sampler = MHSampler(lattice_size = (15, 15))
 
-t_max = float(input("Maximum T:"))
-t_min = float(input("Minimum T:"))
+Delta_1 =  float(input("Delta 1: "))
 
-for t in [t_max, t_min]:
-    temperature = t
-    for _ in range(50):
-        lattice = sampler.generate_sample(temperature, iterations = 15 * 15 * 10)
-        df.loc[len(df)] = list(lattice) + [temperature]
-    print(temperature, end = '\r')
+Delta_2 =  float(input("Delta 2: "))
 
-df.to_csv("data.csv")
+Delta_3 =  float(input("Delta 3: "))
 
-def execute(t_max,t_min):
-    #Retrieve the data that was generated
-    df = pd.read_csv("data.csv", index_col = 0)
-    X = np.array(df[[str(x) for x in range(len(df.columns) - 1)]])
-    y = np.array(df['temperature'] > 2.26918531421, dtype = int)
+Delta_4 =  float(input("Delta 4: "))
+
+def execute(Delta):
     
-    print(y)
-    Size = int(len(X[0]))
+    t_min = 2.26918531421 - Delta
+    t_max = 2.26918531421 + Delta
+    print("Minimum:", t_min)
+    print("Maximum:", t_max)
     
+    for t in [t_max, t_min]:
+        temperature = t
+        for j in range(5000):
+            sampler = MHSampler(lattice_size = (20, 20))
+            for i in range(10):
+                lattice = sampler.generate_sample(temperature, iterations = 20 * 20 * 10)
+                df.loc[len(df)] = list(lattice) + [temperature]
+        print(temperature, end = '\r')
+    
+    df.to_csv("data_train.csv")
+    #Retrieve the train data that was generated
+    df_train = pd.read_csv("data_train.csv", index_col = 0)
+    X = np.array(df_train[[str(x) for x in range(len(df_train.columns) - 1)]])
+    y = np.array(df_train['temperature'] > 2.26918531421, dtype = int)
+    
+    #Retrieve the test data that was generated
+    df_test = pd.read_csv("data_test.csv", index_col = 0)
+    X_test = np.array(df_test[[str(x) for x in range(len(df_test.columns) - 1)]])
+    y_test = np.array(df_test['temperature'] > 2.26918531421, dtype = int)
+
     # Split the data into train and test sets
-    X_val, X_test, y_val, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
-    X_train, X_val, y_train, y_val = train_test_split(X_val, y_val, test_size=0.25, random_state=42)
-    
+    X_val, X_train, y_val, y_train = train_test_split(X, y, test_size=0.2, random_state=42)
+        
     #Neural network with the hidden layers
     model = tf.keras.Sequential([
         tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.01), input_shape=(X_train.shape[1],)),
@@ -145,36 +158,33 @@ def execute(t_max,t_min):
     #Compile the model
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-    
     #Train the model with the train and validation data
-    history = model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val))
-    
-    #Evaluate the model on the test data
-    y_pred = model.predict(X_test)
-    y_pred = [item for sublist in y_pred for item in sublist]
-    #yr_pred = [t_min if yp < 2.26918531421 else t_max for yp in y_pred]
-    
-    difference = abs(y_pred-y_test)
-    
-    count = np.sum(difference)  # Count the number of incorrect predictions
-    accuracy = (len(difference) - count) / len(difference) * 100
-    print(f"Accuracy: {accuracy}%")
-    
-    print('Input vector:', X_test[0])
-    print('Real temperature:', y_test)
-    print('Predicted temperature:', y_pred)
-    # print('Difference: ', difference)
-    # count = 0
-    # for i in range(len(difference)):
-    #     if difference[i] != 0:
-    #         count += 1
-    # print(f"Accuracy: {(len(difference) - count)/(len(difference)) * 100} %")
-    plt.plot(history.history['loss'], label='Training Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
-
-execute(t_max,t_min)
+    model.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_val, y_val))
+    Amount_of_test_data = 400
+    Accuracy = np.zeros(int(len(y_test)/(Amount_of_test_data/2)))
+    for j in range(0, len(y_test), Amount_of_test_data):
+        #Evaluate the model on the test data
+        y_pred = model.predict(X_test[j:j+Amount_of_test_data])
+        y_pred = [item for sublist in y_pred for item in sublist]
+        y_pred = np.round(y_pred).astype(int)
         
+        Accuracy[j//Amount_of_test_data] = accuracy_score(y_test[j:j+Amount_of_test_data], y_pred)*100
+        Accuracy[-(j//Amount_of_test_data) - 1] = Accuracy[j//Amount_of_test_data]
+    
+    x = np.zeros(int(len(y_test)/(Amount_of_test_data/2)))
+    for i in range(1,46):
+        x[i-1] = i/20
+        x[-i] = 2 * 2.26918531421-x[i-1]
+        
+    print((Accuracy))
+    plt.ylim(0, 100)    
+    plt.plot(x, Accuracy, label="\u03B4 = {}".format(Delta))
+
+execute(Delta_1)
+execute(Delta_2)
+execute(Delta_3)
+execute(Delta_4)
+plt.xlabel("Temperature")
+plt.ylabel("Accuracy in %")
+plt.legend()
+plt.show()
